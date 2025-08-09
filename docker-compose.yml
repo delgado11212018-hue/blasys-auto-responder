@@ -1,0 +1,36 @@
+
+version: "3.9"
+services:
+  api:
+    build: ./backend
+    container_name: blasys_api
+    env_file: .env
+    ports: ["8080:8080"]
+    depends_on: [db, redis]
+  worker:
+    build: ./backend
+    container_name: blasys_worker
+    command: celery -A tasks.celery worker --loglevel=INFO
+    env_file: .env
+    depends_on: [db, redis]
+  beat:
+    build: ./backend
+    container_name: blasys_beat
+    command: celery -A tasks.celery beat --loglevel=INFO
+    env_file: .env
+    depends_on: [db, redis]
+  db:
+    image: postgres:15
+    container_name: blasys_db
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: blasys
+    ports: ["5433:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    container_name: blasys_redis
+    ports: ["6379:6379"]
+volumes:
+  pgdata:

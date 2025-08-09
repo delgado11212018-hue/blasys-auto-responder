@@ -1,0 +1,73 @@
+
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Blasys Auto-Responder</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
+    h1 { margin: 0 0 8px; }
+    .meta { color: #666; margin-bottom: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .btn { padding: 6px 10px; border: 1px solid #333; border-radius: 6px; cursor: pointer; margin-right: 6px; }
+    .row { display: flex; gap: 10px; }
+    pre { background: #f7f7f7; padding: 8px; border-radius: 6px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Blasys Auto-Responder</h1>
+  <div class="meta">
+    Moderation queue for negative/edge comments. Positive + questions can auto-send after 5 minutes.
+  </div>
+
+  <section>
+    <h2>Metrics</h2>
+    <div id="metrics"></div>
+  </section>
+
+  <section>
+    <h2>Moderation Queue</h2>
+    <div id="queue"></div>
+  </section>
+
+<script>
+async function loadMetrics(){
+  const res = await fetch('/api/metrics'); const m = await res.json();
+  document.getElementById('metrics').innerHTML = `
+    Total: <b>${m.total}</b> · Sent: <b>${m.sent}</b> · Pending: <b>${m.pending}</b> ·
+    👍 <b>${m.positives}</b> · ❓ <b>${m.questions}</b> · 👎 <b>${m.negatives}</b>
+  `;
+}
+async function loadQueue(){
+  const res = await fetch('/api/moderation/queue'); const items = await res.json();
+  const el = document.getElementById('queue'); el.innerHTML = '';
+  for (const it of items){
+    const card = document.createElement('div'); card.className='card';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;">
+        <div><b>@${it.username}</b> · <small>${it.lang} / ${it.sentiment} / ${it.personalized ? 'personalized' : 'generic'}</small></div>
+        <div><small>Status: ${it.status}</small></div>
+      </div>
+      <div style="margin-top:6px;">${it.text}</div>
+      <div style="margin-top:8px;"><small>Reply draft:</small><pre>${it.reply || '(none)'}</pre></div>
+      <div>
+        <button class="btn" onclick="approve(${it.id})">Approve & Queue Send</button>
+        <button class="btn" onclick="skip(${it.id})">Skip</button>
+      </div>
+    `;
+    el.appendChild(card);
+  }
+}
+async function approve(id){
+  await fetch('/api/moderation/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({comment_id:id})});
+  await loadQueue(); await loadMetrics();
+}
+async function skip(id){
+  await fetch('/api/moderation/skip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({comment_id:id})});
+  await loadQueue(); await loadMetrics();
+}
+loadMetrics(); loadQueue();
+</script>
+</body>
+</html>
